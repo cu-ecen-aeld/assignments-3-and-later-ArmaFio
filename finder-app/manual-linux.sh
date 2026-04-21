@@ -92,7 +92,7 @@ make clean
 make CROSS_COMPILE=aarch64-none-linux-gnu-
 
 
-sudo cp -rL "${SCRIPT_DIR}/*" "${OUTDIR}/rootfs/home"
+sudo cp -rL "${SCRIPT_DIR}"/* "${OUTDIR}/rootfs/home"
 
 
 cd "${OUTDIR}/rootfs"
