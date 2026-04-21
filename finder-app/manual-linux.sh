@@ -12,6 +12,7 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &> /dev/null && pwd)
 
 if [ $# -lt 1 ]
 then
@@ -86,12 +87,12 @@ sudo cp -L $SYSROOT/lib64/libresolv.so.2 "${OUTDIR}/rootfs/lib64"
 sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 666 dev/console c 5 1
 
-cd ~/assignment-1-ArmaFio/finder-app
+cd "${SCRIPT_DIR}"
 make clean
 make CROSS_COMPILE=aarch64-none-linux-gnu-
 
 
-sudo cp -rL ~/assignment-1-ArmaFio/finder-app/* "${OUTDIR}/rootfs/home"
+sudo cp -rL "${SCRIPT_DIR}/*" "${OUTDIR}/rootfs/home"
 
 
 cd "${OUTDIR}/rootfs"
