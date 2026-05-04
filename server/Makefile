@@ -2,7 +2,7 @@ CROSS_COMPILE =
 
 all: aesdsocket
 
-writer : writer.c 
+aesdsocket : aesdsocket.c 
 		 $(CROSS_COMPILE)gcc -o aesdsocket aesdsocket.c 
 		 
 clean : 
