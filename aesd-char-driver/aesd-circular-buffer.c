@@ -29,9 +29,30 @@
 struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
             size_t char_offset, size_t *entry_offset_byte_rtn )
 {
-    /**
-    * TODO: implement per description
-    */
+    int index=buffer->out_offs, size=0, temp, elems;
+    if (buffer->full == 1)
+        elems = 10;
+    else{
+        if(buffer->out_offs < buffer->in_offs)
+            elems = buffer->in_offs - buffer->out_offs;
+        else if (buffer->out_offs > buffer->in_offs)
+            elems = (10 - buffer->out_offs) + buffer->in_offs;
+        else 
+            return NULL;
+    }
+    while(elems > 0){
+        temp = size;
+        size += buffer-> entry [index].size;
+        if (size > (char_offset)){
+            *(entry_offset_byte_rtn) = char_offset-temp;
+            return &(buffer->entry[index]);
+        }
+        if (index == 9)
+            index = 0;
+        else 
+            index++;
+        elems --;
+    }
     return NULL;
 }
 
@@ -44,9 +65,21 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    /**
-    * TODO: implement per description
-    */
+    if(buffer->full == 1){
+        if (buffer->out_offs == 9)
+            buffer->out_offs = 0;
+        else
+            buffer->out_offs ++;
+    }
+    buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
+    buffer->entry[buffer->in_offs].size = add_entry->size;
+    if (buffer->in_offs == 9)
+        buffer->in_offs = 0;
+    else
+        buffer->in_offs ++;
+    if(buffer->in_offs == buffer->out_offs){
+        buffer -> full = 1;
+    }
 }
 
 /**
