@@ -1,6 +1,11 @@
 CFLAGS ?= -g -Wall -Werror
 LDFLAGS ?= -pthread -lrt
+USE_AESD_CHAR_DEVICE ?= 1
 CC ?= $(CROSS_COMPILE)gcc
+
+ifneq ($(USE_AESD_CHAR_DEVICE), 0)
+	CFLAGS += -DUSE_AESD_CHAR_DEVICE
+endif
 
 all: aesdsocket
 

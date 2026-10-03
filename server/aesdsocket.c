@@ -14,6 +14,12 @@
 #include <sys/queue.h>
 #include <pthread.h>
 
+#ifndef USE_AESD_CHAR_DEVICE
+char *filename = "/var/tmp/aesdsocketdata";
+#else
+char *filename = "/dev/aesdchar";
+#endif
+
 typedef struct threadlist {
     pthread_t th;
     int completed;
@@ -47,7 +53,7 @@ void * rcvpacket(void *thread_params) {
     int i=0, capacity = 512, file;
 
     
-    file = open("/var/tmp/aesdsocketdata", O_RDWR | O_CREAT | O_APPEND, 0666);
+    file = open(filename, O_RDWR | O_CREAT | O_APPEND, 0666);
     if (file == -1){
         syslog(LOG_DEBUG, "Closed connection with %s", inet_ntoa(parameters->sndr.sin_addr));
         close(parameters->sock);
@@ -86,6 +92,7 @@ void * rcvpacket(void *thread_params) {
     write (file, buffer, i);
     free(buffer);
 
+    #ifndef USE_AESD_CHAR_DEVICE
     long file_size = lseek(file, 0, SEEK_END);
     lseek(file, 0, SEEK_SET);
 
@@ -104,6 +111,19 @@ void * rcvpacket(void *thread_params) {
             free(buffer);
         }
     }
+    #else
+    char read_buf [512];
+    ssize_t bytes_read;
+    while((bytes_read = read(file, read_buf,  sizeof(read_buf)))>0){
+        if((n = send(parameters->sock, read_buf, bytes_read, 0)) < 0){
+            pthread_mutex_unlock(parameters->mutex);
+            syslog(LOG_DEBUG, "Closed connection with %s", inet_ntoa(parameters->sndr.sin_addr));
+            close(parameters->sock);
+            *(parameters->oncompleted) = 1;
+            pthread_exit((void *)-1);
+        }
+    }
+    #endif
     pthread_mutex_unlock(parameters->mutex);
     syslog(LOG_DEBUG, "Closed connection with %s", inet_ntoa(parameters->sndr.sin_addr));
     close(file);
@@ -113,6 +133,7 @@ void * rcvpacket(void *thread_params) {
     pthread_exit(0);
 }
 
+#ifndef USE_AESD_CHAR_DEVICE
  static void writetime(sigval_t sigval){
     tdata_t *td = (tdata_t *) sigval.sival_ptr;
     time_t rawtime;
@@ -126,7 +147,6 @@ void * rcvpacket(void *thread_params) {
         pthread_exit((void*)-1);
     time(&rawtime);
     info = localtime(&rawtime);
-
     strftime(time_str, sizeof(time_str), "%a, %d %b %Y %H:%M:%S %z", info);
     length = snprintf(final_str, 100, "timestamp:%s\n", time_str); 
     pthread_mutex_lock (td -> mutex);
@@ -134,9 +154,9 @@ void * rcvpacket(void *thread_params) {
     pthread_mutex_unlock(td->mutex);
     close(file);
 }
+#endif
 
 int main(int argc, char* argv[]) {
-    int clockid = CLOCK_MONOTONIC;
     pthread_mutex_t *mutex;
     rcvpcktparams_t *params;
     struct head l;
@@ -146,28 +166,28 @@ int main(int argc, char* argv[]) {
     struct addrinfo hints, *res;
     struct sockaddr_in sndr;
     socklen_t sndrlen;
-    sigevent_t sev;
     tdata_t *td;
-    timer_t timerid;
-    struct itimerspec its;
+    #ifndef USE_AESD_CHAR_DEVICE
+        timer_t timerid;
+        int clockid = CLOCK_MONOTONIC;
+        sigevent_t sev;
+        struct itimerspec its;
+        its.it_interval.tv_sec = 10;
+        its.it_interval.tv_nsec=0;
+        its.it_value.tv_sec = 10;
+        its.it_value.tv_nsec = 0;
+        sev.sigev_notify = SIGEV_THREAD;
+        sev._sigev_un._sigev_thread._function= writetime;
+        sev.sigev_value.sival_ptr = td;
+    #endif
 
-    file = open("/var/tmp/aesdsocketdata", O_RDWR | O_CREAT | O_TRUNC , 0666);
+    file = open(filename, O_RDWR | O_CREAT | O_TRUNC , 0666);
     if (file == -1) 
         return -1;
     close(file);
 
-    its.it_interval.tv_sec = 10;
-    its.it_interval.tv_nsec=0;
-    its.it_value.tv_sec = 10;
-    its.it_value.tv_nsec = 0;
-
-
     td = malloc (sizeof(tdata_t));
-    sev.sigev_notify = SIGEV_THREAD;
-    sev._sigev_un._sigev_thread._function= writetime;
-    sev.sigev_value.sival_ptr = td;
-
-
+   
     SLIST_INIT(&l);
     mutex = malloc (sizeof(pthread_mutex_t));
     pthread_mutex_init(mutex, NULL);
@@ -220,8 +240,10 @@ int main(int argc, char* argv[]) {
                 if (fd > 2) close(fd);
             }
         }
+        #ifndef USE_AESD_CHAR_DEVICE
         timer_create(clockid, &sev, &timerid);
         timer_settime(timerid, 0, &its, NULL);
+        #endif
         if (listen(sock, SOMAXCONN) != 0) {
             close(sock); 
             return -1;
@@ -244,7 +266,7 @@ int main(int argc, char* argv[]) {
                 if (errno == EINTR) {
                     break;
                 }
-                continue; 
+                continue;  
             }
             
             syslog(LOG_DEBUG, "Accepted connection from %s", inet_ntoa(sndr.sin_addr));
@@ -265,13 +287,17 @@ int main(int argc, char* argv[]) {
             SLIST_REMOVE_HEAD(&l, entries);   
             free(data);                       
         }
-        timer_delete(timerid);
+        #ifndef USE_AESD_CHAR_DEVICE
+            timer_delete(timerid);
+        #endif
         free(td);       
         pthread_mutex_destroy(mutex);
         free(mutex);
         syslog(LOG_USER, "Caught signal, exiting");
         close(sock);
-        unlink("/var/tmp/aesdsocketdata");
+        #ifndef USE_AESD_CHAR_DEVICE
+        unlink(filename);
+        #endif
         closelog();
     }
     else if (argc>1 && pid !=0)
