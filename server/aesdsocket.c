@@ -181,10 +181,12 @@ int main(int argc, char* argv[]) {
         sev.sigev_value.sival_ptr = td;
     #endif
 
+    #ifndef USE_AESD_CHAR_DEVICE
     file = open(filename, O_RDWR | O_CREAT | O_TRUNC , 0666);
     if (file == -1) 
         return -1;
     close(file);
+    #endif
 
     td = malloc (sizeof(tdata_t));
    
