@@ -231,7 +231,7 @@ int main(int argc, char* argv[]) {
     freeaddrinfo(res);
     if(argc>1)
         pid=fork();
-
+    fprintf(stderr, "Checkpoint\n");
     if(argc==1 || pid == 0){
         if(argc > 1){
             setsid();
@@ -252,6 +252,7 @@ int main(int argc, char* argv[]) {
             close(sock); 
             return -1;
         }
+        fprintf(stderr, "Checkpoint\n");
         while (!hastostop) {
             data = SLIST_FIRST(&l);
             while (data != NULL) {
@@ -264,6 +265,8 @@ int main(int argc, char* argv[]) {
                 data = next_data; 
             }
             sndrlen = sizeof(struct sockaddr_in);
+            
+            fprintf(stderr, "Checkpoint\n");
             singlesock = accept(sock, (struct sockaddr *)&sndr, &sndrlen);
             
             if (singlesock == -1) {
