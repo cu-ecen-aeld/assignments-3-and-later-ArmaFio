@@ -157,6 +157,7 @@ void * rcvpacket(void *thread_params) {
 #endif
 
 int main(int argc, char* argv[]) {
+    fprintf(stderr, "Checkpoint\n");
     pthread_mutex_t *mutex;
     rcvpcktparams_t *params;
     struct head l;
@@ -181,7 +182,7 @@ int main(int argc, char* argv[]) {
         sev._sigev_un._sigev_thread._function= writetime;
         sev.sigev_value.sival_ptr = td;
     #endif
-
+    fprintf(stderr, "Checkpoint\n");
     #ifndef USE_AESD_CHAR_DEVICE
     file = open(filename, O_RDWR | O_CREAT | O_TRUNC , 0666);
     if (file == -1) 
@@ -190,13 +191,13 @@ int main(int argc, char* argv[]) {
     #endif
 
     td = malloc (sizeof(tdata_t));
-   
+    fprintf(stderr, "Checkpoint\n");
     SLIST_INIT(&l);
     mutex = malloc (sizeof(pthread_mutex_t));
     pthread_mutex_init(mutex, NULL);
     td ->mutex = mutex;
     openlog("aesdsocket", LOG_PID, LOG_USER);
-
+    fprintf(stderr, "Checkpoint\n");
     struct sigaction newaction;
     memset(&newaction, 0, sizeof(struct sigaction));
     newaction.sa_handler = terminate;
@@ -208,7 +209,7 @@ int main(int argc, char* argv[]) {
     if (sock == -1) {
         return -1;
     }
-
+    fprintf(stderr, "Checkpoint\n");
     int opt = 1;
     setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
@@ -221,7 +222,7 @@ int main(int argc, char* argv[]) {
         close(sock); 
         return -1;
     }
-
+    fprintf(stderr, "Checkpoint\n");
     if (bind(sock, res->ai_addr, res->ai_addrlen) != 0) {
         freeaddrinfo(res);
         close(sock); 
