@@ -162,12 +162,13 @@ int main(int argc, char* argv[]) {
     struct head l;
     threadlist_t *data= NULL;
     pid_t pid;
-    int sock, singlesock, file;
+    int sock, singlesock;
     struct addrinfo hints, *res;
     struct sockaddr_in sndr;
     socklen_t sndrlen;
     tdata_t *td;
     #ifndef USE_AESD_CHAR_DEVICE
+        int file;
         timer_t timerid;
         int clockid = CLOCK_MONOTONIC;
         sigevent_t sev;
