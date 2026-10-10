@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <aesd_ioctl.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -88,11 +90,23 @@ void * rcvpacket(void *thread_params) {
         free(parameters);
         pthread_exit((void*)-1);
     }
+    capacity = capacity+1;
+    new_ptr = realloc (buffer, capacity);
+    if (new_ptr == NULL){
+        free (buffer);
+        syslog(LOG_DEBUG, "Closed connection with %s", inet_ntoa(parameters->sndr.sin_addr));
+        close(parameters->sock);
+        *(parameters->oncompleted) = 1;
+        free(parameters);
+        pthread_exit((void*)-1);
+    }
+    buffer = new_ptr;
+    buffer[i] = '\0';
     pthread_mutex_lock(parameters->mutex);
-    write (file, buffer, i);
-    free(buffer);
 
     #ifndef USE_AESD_CHAR_DEVICE
+    write (file, buffer, i);
+    free(buffer);
     long file_size = lseek(file, 0, SEEK_END);
     lseek(file, 0, SEEK_SET);
 
@@ -112,6 +126,18 @@ void * rcvpacket(void *thread_params) {
         }
     }
     #else
+    unsigned int a,b;
+    if (strncmp(buffer, "AESDCHAR_IOCSEEKTO:", 19) == 0 && sscanf(buffer, "AESDCHAR_IOCSEEKTO:%u,%u", &a, &b) == 2){
+        struct aesd_seekto arg;
+        arg.write_cmd = a;
+        arg.write_cmd_offset = b;
+        ioctl(file, AESDCHAR_IOCSEEKTO, &arg);
+    }
+    else{
+        write (file, buffer, i);
+        lseek(file, 0, SEEK_SET);
+    }
+    free(buffer);
     char read_buf [512];
     ssize_t bytes_read;
     while((bytes_read = read(file, read_buf,  sizeof(read_buf)))>0){

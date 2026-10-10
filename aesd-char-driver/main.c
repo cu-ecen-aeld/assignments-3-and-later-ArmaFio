@@ -18,6 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
 #include "aesd-circular-buffer.h"
+#include "aesd_ioctl.h"
 #include "aesdchar.h"
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
@@ -90,12 +91,82 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     return retval;
 }
 
+loff_t aesd_llseek(struct file *filp, loff_t offset, int cmd){
+    mutex_lock(&aesd_device.lock);
+    int i,size;
+    struct aesd_buffer_entry *entry;
+    AESD_CIRCULAR_BUFFER_FOREACH(entry, &aesd_device.buffer, i){
+        size += entry->size;
+    }; 
+    switch(cmd){
+        case SEEK_END:
+        {
+            if(offset>0 || size+offset<0){
+                mutex_unlock(&aesd_device.lock);
+                return -EINVAL;
+            }
+            filp->f_pos = size + offset;
+            break;
+        }
+        case SEEK_SET: 
+        {
+            if(offset>size || offset<0){
+                mutex_unlock(&aesd_device.lock);
+                return -EINVAL;
+            }
+            filp->f_pos = offset;
+            break;
+        }
+        case SEEK_CUR:
+        {
+            if(filp->f_pos + offset > size || filp->f_pos + offset < 0){
+                mutex_unlock(&aesd_device.lock);
+                return -EINVAL;
+            } 
+            else filp->f_pos += offset;
+            break;
+        }
+    };
+    mutex_unlock(&aesd_device.lock);
+    return filp->f_pos;
+}
+
+long aesd_ioctl(struct file *filp, unsigned int magic, unsigned long arg){
+    struct aesd_seekto *ptr = (struct aesd_seekto *) arg;
+    struct aesd_seekto strarg;
+    mutex_lock(&aesd_device.lock);
+    unsigned long ret = copy_from_user((void*) &strarg, ptr, sizeof(struct aesd_seekto));
+    if (ret != 0){
+        mutex_unlock(&aesd_device.lock);
+        return -EFAULT;
+    }
+    if(strarg.write_cmd>=AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED || strarg.write_cmd<0){
+        mutex_unlock(&aesd_device.lock);
+        return -EINVAL;
+    }
+    int end = aesd_device.buffer.out_offs + strarg.write_cmd / AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    if (aesd_device.buffer.entry[end].buffptr == NULL || aesd_device.buffer.entry[end].size <= strarg.write_cmd_offset){
+        mutex_unlock(&aesd_device.lock);
+        return -EINVAL;
+    }
+    int size = 0;
+    for (int i = 0; i<strarg.write_cmd; i++){
+        int index = aesd_device.buffer.out_offs + i / AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+        size += aesd_device.buffer.entry[index].size;
+    }
+    filp->f_pos = size + strarg.write_cmd_offset;
+    mutex_unlock(&aesd_device.lock);
+    return 0;
+}
+
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
     .write =    aesd_write,
     .open =     aesd_open,
     .release =  aesd_release,
+    .llseek =   aesd_llseek,
+    .unlocked_ioctl = aesd_ioctl,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)

@@ -1,0 +1,20 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-c",
+      "-g",
+      "-Wall",
+      "-Werror",
+      "-I../aesd-char-driver",
+      "-DUSE_AESD_CHAR_DEVICE",
+      "-pthread",
+      "-o",
+      "aesdsocket",
+      "aesdsocket.c"
+    ],
+    "directory": "/home/ubuntu/assignments-3-and-later-ArmaFio/server",
+    "file": "/home/ubuntu/assignments-3-and-later-ArmaFio/server/aesdsocket.c",
+    "output": "/home/ubuntu/assignments-3-and-later-ArmaFio/server/aesdsocket"
+  }
+]

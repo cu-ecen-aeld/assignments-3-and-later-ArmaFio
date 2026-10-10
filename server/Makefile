@@ -1,4 +1,4 @@
-CFLAGS ?= -g -Wall -Werror
+CFLAGS ?= -g -Wall -Werror -I../aesd-char-driver
 LDFLAGS ?= -pthread -lrt
 USE_AESD_CHAR_DEVICE ?= 1
 CC ?= $(CROSS_COMPILE)gcc

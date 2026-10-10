@@ -9,7 +9,7 @@ case "$1" in
     stop)
         echo "Stopping aesdsocket"
         start-stop-daemon -K -p /var/run/aesdsocket.pid
-        /usr/bin/aesdchar_pgrepunload
+        /usr/bin/aesdchar_unload
         ;;
     *)
         echo "Usage: $0 {start|stop}"
